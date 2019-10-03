@@ -1,0 +1,28 @@
+[package]
+name = "bitbar-twitch"
+version = "0.1.0"
+authors = ["Fenhl <fenhl@fenhl.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derive_more = "*"
+itertools = "*"
+notify-rust = "3"
+reqwest = "*"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+xdg-basedir = "1"
+
+[dependencies.bitbar]
+git = "https://github.com/fenhl/rust-bitbar"
+features = ["base64"]
+
+[dependencies.chrono]
+version = "*"
+features = ["serde"]
+
+[dependencies.timespec]
+git = "https://github.com/fenhl/rust-timespec"
