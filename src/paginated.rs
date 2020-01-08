@@ -4,8 +4,10 @@ use {
         RequestBuilder,
         Response
     },
-    serde::de::DeserializeOwned,
-    serde_derive::Deserialize,
+    serde::{
+        Deserialize,
+        de::DeserializeOwned
+    },
     crate::Error
 };
 

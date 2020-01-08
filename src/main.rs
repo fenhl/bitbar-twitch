@@ -32,7 +32,7 @@ use {
     derive_more::From,
     itertools::Itertools as _,
     notify_rust::Notification,
-    serde_derive::Deserialize,
+    serde::Deserialize,
     crate::{
         data::Data,
         paginated::PaginatedList
