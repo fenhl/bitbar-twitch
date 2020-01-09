@@ -46,6 +46,7 @@ mod paginated;
 enum Error {
     Basedir(xdg_basedir::Error),
     CommandExit(&'static str, Output),
+    #[from(ignore)]
     CommandLength(usize),
     EmptyTimespec,
     Io(io::Error),
@@ -183,7 +184,7 @@ fn read_access_token() -> Result<String, Error> {
 
 fn bitbar() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
-    let mut data = Data::new()?;
+    let mut data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
         return Ok(Menu::default());
     }
@@ -275,6 +276,7 @@ fn bitbar() -> Result<Menu, Error> {
                                 .collect::<Vec<_>>()
                         ).map_err(|v| Error::CommandLength(v.len()))?
                     )
+                    .refresh()
                     .into()
             ))
         )
@@ -311,9 +313,11 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
     }
 }
 
+// subcommands
+
 fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
     let mut args = args.peekable();
-    let mut data = Data::new()?;
+    let mut data = Data::load()?;
     data.deferred = Some(if args.peek().is_some() {
         timespec::next(args)?.ok_or(Error::EmptyTimespec)?
     } else {
@@ -324,14 +328,14 @@ fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
 }
 
 fn hide_game(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut data = Data::new()?;
+    let mut data = Data::load()?;
     data.hidden_games.entry(args.next().ok_or(Error::MissingCliArg)?).or_default().insert(args.next().ok_or(Error::MissingCliArg)?);
     data.save()?;
     Ok(())
 }
 
 fn hide_stream(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut data = Data::new()?;
+    let mut data = Data::load()?;
     data.hidden_streams.insert(args.next().ok_or(Error::MissingCliArg)?);
     data.save()?;
     Ok(())

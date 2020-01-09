@@ -28,7 +28,7 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub(crate) fn new() -> Result<Data, Error> {
+    pub(crate) fn load() -> Result<Data, Error> {
         let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
         Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/twitch.json")).ok())
             .next().map_or(Ok(Data::default()), serde_json::from_reader)?)
