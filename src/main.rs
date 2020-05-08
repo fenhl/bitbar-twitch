@@ -313,6 +313,21 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
     }
 }
 
+fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
+    match e {
+        Error::Reqwest(e) => {
+            menu.push(MenuItem::new(format!("reqwest error: {}", e)));
+            if let Some(url) = e.url() {
+                menu.push(ContentItem::new(format!("URL: {}", url))
+                    .href(url.clone()).expect("failed to parse the request error URL")
+                    .color("blue").expect("failed to parse the color blue")
+                    .into());
+            }
+        }
+        _ => { menu.push(MenuItem::new(format!("{:?}", e))); }
+    }
+}
+
 // subcommands
 
 fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
@@ -357,11 +372,12 @@ fn main() {
         match bitbar() {
             Ok(menu) => { print!("{}", menu); }
             Err(e) => {
-                print!("{}", Menu(vec![
+                let mut menu = vec![
                     ContentItem::new("?").template_image(&include_bytes!("../assets/glitch.png")[..]).never_unwrap().into(),
-                    MenuItem::Sep,
-                    MenuItem::new(format!("{:?}", e)) //TODO better error menus (especially for “missing access token”, see old Python impl)
-                ]));
+                    MenuItem::Sep
+                ];
+                error_menu(e, &mut menu);
+                print!("{}", Menu(menu));
             }
         }
     }
