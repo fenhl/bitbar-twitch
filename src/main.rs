@@ -37,6 +37,8 @@ use {
 mod data;
 mod paginated;
 
+const CLIENT_ID: &str = "pe6plnyoh4yy8swie5nt80n84ynyft";
+
 #[derive(Debug, From)]
 enum Error {
     Basedir(xdg_basedir::Error),
@@ -173,6 +175,7 @@ fn bitbar() -> Result<Menu, Error> {
     let follows = PaginatedList::from(
         client.get("https://api.twitch.tv/helix/users/follows")
             .query(&[("from_id", data.user_id.as_ref().ok_or(Error::MissingUserId)?)])
+            .header("client-id", CLIENT_ID)
             .header("Authorization", format!("Bearer {}", access_token))
     );
     let mut users = HashMap::<String, User>::default();
@@ -184,6 +187,7 @@ fn bitbar() -> Result<Menu, Error> {
                 match PaginatedList::<User>::from(
                     client.get("https://api.twitch.tv/helix/users")
                         .query(&chunk.iter().map(|Follow { to_id, .. }| ("id", to_id)).collect::<Vec<_>>())
+                        .header("client-id", CLIENT_ID)
                         .header("Authorization", format!("Bearer {}", access_token))
                 ).map(|user| user.map(|user| (user.id.clone(), user)))
                 .collect::<Result<Vec<_>, _>>() {
@@ -193,6 +197,7 @@ fn bitbar() -> Result<Menu, Error> {
                 Box::new(PaginatedList::from(
                     client.get("https://api.twitch.tv/helix/streams")
                         .query(&chunk.iter().map(|Follow { to_id, .. }| ("user_id", to_id)).collect::<Vec<_>>())
+                        .header("client-id", CLIENT_ID)
                         .header("Authorization", format!("Bearer {}", access_token))
                 ))
             }
@@ -208,6 +213,7 @@ fn bitbar() -> Result<Menu, Error> {
             Box::new(PaginatedList::<Game>::from(
                 client.get("https://api.twitch.tv/helix/games")
                     .query(&chunk.map(|game_id| ("id", game_id)).collect::<Vec<_>>())
+                    .header("client-id", CLIENT_ID)
                     .header("Authorization", format!("Bearer {}", access_token))
             ))
         )
