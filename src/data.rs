@@ -17,6 +17,7 @@ use {
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub(crate) struct Data {
+    pub(crate) access_token: Option<String>,
     #[serde(default)]
     pub(crate) defer_deltas: Vec<Vec<String>>,
     pub(crate) deferred: Option<DateTime<Utc>>,

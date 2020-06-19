@@ -9,12 +9,7 @@ use {
         convert::Infallible,
         env,
         fmt,
-        fs::File,
-        io::{
-            self,
-            BufReader,
-            prelude::*
-        },
+        io,
         iter,
         path::Path,
         process::Output
@@ -53,7 +48,6 @@ enum Error {
     Json(serde_json::Error),
     MissingAccessToken,
     MissingCliArg,
-    MissingStreamlinkConfig,
     MissingUserId,
     MissingUserInfo,
     Reqwest(reqwest::Error),
@@ -168,27 +162,13 @@ enum StreamType {
     Error
 }
 
-fn read_access_token() -> Result<String, Error> {
-    let dirs = xdg_basedir::get_config_home().into_iter().chain(xdg_basedir::get_config_dirs());
-    let streamlink_config = dirs.filter_map(|cfg_dir| File::open(cfg_dir.join("streamlink/config")).ok())
-        .next().ok_or(Error::MissingStreamlinkConfig)?;
-    BufReader::new(streamlink_config)
-        .lines()
-        .collect::<Result<Vec<_>, _>>()? //TODO avoid collecting by using try_filter and try_next
-        .into_iter()
-        .filter(|line| line.starts_with("twitch-oauth-token="))
-        .next()
-        .and_then(|line| line.splitn(2, '=').nth(1).map(String::from))
-        .ok_or(Error::MissingAccessToken)
-}
-
 fn bitbar() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
         return Ok(Menu::default());
     }
-    let access_token = read_access_token()?;
+    let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
     let client = reqwest::Client::new();
     let follows = PaginatedList::from(
         client.get("https://api.twitch.tv/helix/users/follows")
@@ -315,6 +295,13 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
 
 fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
     match e {
+        Error::MissingAccessToken => {
+            menu.push(MenuItem::new("no access token configured"));
+            menu.push(ContentItem::new("Log In")
+                .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
+                .color("blue").expect("failed to parse the color blue")
+                .into());
+        }
         Error::Reqwest(e) => {
             menu.push(MenuItem::new(format!("reqwest error: {}", e)));
             if let Some(url) = e.url() {
@@ -324,7 +311,7 @@ fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
                     .into());
             }
         }
-        _ => { menu.push(MenuItem::new(format!("{:?}", e))); }
+        _ => { menu.push(MenuItem::new(format!("error: {:?}", e))); }
     }
 }
 
