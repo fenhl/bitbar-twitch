@@ -34,7 +34,7 @@ pub(crate) struct Data {
     pub(crate) hidden_games: BTreeMap<UserId, BTreeSet<GameId>>,
     #[serde(default)]
     pub(crate) hidden_streams: BTreeSet<StreamId>,
-    pub(crate) user_id: Option<UserId>
+    user_id: Option<UserId>
 }
 
 impl Data {
