@@ -11,10 +11,14 @@ use {
         Deserialize,
         Serialize
     },
-    twitch_helix::model::{
-        GameId,
-        StreamId,
-        UserId
+    twitch_helix::{
+        Client,
+        model::{
+            GameId,
+            StreamId,
+            User,
+            UserId
+        }
     },
     crate::Error
 };
@@ -34,6 +38,13 @@ pub(crate) struct Data {
 }
 
 impl Data {
+    pub(crate) async fn get_user_id(&mut self, client: &Client) -> Result<UserId, Error> {
+        if let Some(ref user_id) = self.user_id { return Ok(user_id.clone()); }
+        let id = User::me(client).await?.id;
+        assert!(self.user_id.replace(id.clone()).is_none());
+        Ok(id)
+    }
+
     pub(crate) fn load() -> Result<Data, Error> {
         let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
         Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/twitch.json")).ok())

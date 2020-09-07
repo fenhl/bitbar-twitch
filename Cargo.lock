@@ -120,7 +120,7 @@ dependencies = [
  "serde_json 1.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "timespec 1.4.0 (git+https://github.com/fenhl/rust-timespec)",
  "tokio 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "twitch_helix 0.1.1 (git+https://github.com/fenhl/rust-twitch-helix)",
+ "twitch_helix 0.1.2 (git+https://github.com/fenhl/rust-twitch-helix)",
  "xdg-basedir 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1249,14 +1249,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "twitch_helix"
-version = "0.1.1"
-source = "git+https://github.com/fenhl/rust-twitch-helix#a3778bad6cbd01f9be9e6eabb094c7f862d696cf"
+version = "0.1.2"
+source = "git+https://github.com/fenhl/rust-twitch-helix#0974ed5c9c1ed0635ed1b0f7edb4e296bea6b567"
 dependencies = [
  "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "derive_more 0.99.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-utils 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.10.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1616,7 +1617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum tracing 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)" = "6d79ca061b032d6ce30c660fded31189ca0b9922bf483cd70759f13a2d86786c"
 "checksum tracing-core 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)" = "4f0e00789804e99b20f12bc7003ca416309d28a6f495d6af58d1e2c2842461b5"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
-"checksum twitch_helix 0.1.1 (git+https://github.com/fenhl/rust-twitch-helix)" = "<none>"
+"checksum twitch_helix 0.1.2 (git+https://github.com/fenhl/rust-twitch-helix)" = "<none>"
 "checksum unicase 2.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
 "checksum unicode-bidi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "49f2bd0c6468a8230e1db229cff8029217cf623c767ea5d60bfbd42729ea54d5"
 "checksum unicode-normalization 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)" = "b561e267b2326bb4cebfc0ef9e68355c7abe6c6f522aeac2f5bf95d56c59bdcf"

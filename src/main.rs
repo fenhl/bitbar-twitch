@@ -64,7 +64,6 @@ enum Error {
     Json(serde_json::Error),
     MissingAccessToken,
     MissingCliArg,
-    MissingUserId,
     MissingUserInfo,
     StreamType,
     Timespec(timespec::Error),
@@ -95,6 +94,25 @@ impl CommandOutputExt for Output {
     }
 }
 
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Basedir(e) => e.fmt(f),
+            Error::CommandExit(cmd, output) => write!(f, "command `{}` exited with {}", cmd, output.status),
+            Error::CommandLength(len) => write!(f, "attempted to create command menu item with {} args", len),
+            Error::EmptyTimespec => write!(f, "timespec must not be empty"),
+            Error::Io(e) => write!(f, "I/O error: {}", e),
+            Error::Json(e) => write!(f, "JSON error: {}", e),
+            Error::MissingAccessToken => write!(f, "no access token configured"),
+            Error::MissingCliArg => write!(f, "subcommand needs more parameters"),
+            Error::MissingUserInfo => write!(f, "a followed user's data was lost"),
+            Error::StreamType => write!(f, "unsupported stream type"),
+            Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display for timespec::Error and use here
+            Error::Twitch(e) => e.fmt(f)
+        }
+    }
+}
 trait ResultNeverExt<T> {
     fn never_unwrap(self) -> T;
 }
@@ -151,7 +169,7 @@ async fn bitbar() -> Result<Menu, Error> {
     }
     let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
     let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, access_token)?;
-    let follows = Follow::from(&client, data.user_id.as_ref().ok_or(Error::MissingUserId)?.clone()).chunks(100);
+    let follows = Follow::from(&client, data.get_user_id(&client).await?).chunks(100);
     pin_mut!(follows);
     let mut users = HashMap::<UserId, User>::default();
     let mut online_streams = Vec::default();
@@ -259,7 +277,7 @@ impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
 fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
     match e {
         Error::MissingAccessToken => {
-            menu.push(MenuItem::new("no access token configured"));
+            menu.push(MenuItem::new(e));
             menu.push(ContentItem::new("Log In")
                 .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
                 .color("blue").expect("failed to parse the color blue")
@@ -284,7 +302,10 @@ fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
                     .into());
             }
         }
-        _ => { menu.push(MenuItem::new(format!("error: {:?}", e))); }
+        _ => {
+            menu.push(MenuItem::new(&e));
+            menu.push(MenuItem::new(format!("{:?}", e)));
+        }
     }
 }
 
