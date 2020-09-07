@@ -1,16 +1,14 @@
 [package]
 name = "bitbar-twitch"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 derive_more = "0.99"
 itertools = "0.8"
 notify-rust = "3"
-reqwest = "0.9" #TODO upgrade to 0.10 and rework to use async
+pin-utils = "0.1"
 serde_json = "1"
 xdg-basedir = "1"
 
@@ -22,9 +20,19 @@ features = ["base64", "url1"]
 version = "0.4"
 features = ["serde"]
 
+[dependencies.futures]
+version = "0.3"
+
 [dependencies.serde]
 version = "1"
 features = ["derive"]
 
 [dependencies.timespec]
 git = "https://github.com/fenhl/rust-timespec"
+
+[dependencies.tokio]
+version = "0.2"
+features = ["macros", "rt-threaded"]
+
+[dependencies.twitch_helix]
+git = "https://github.com/fenhl/rust-twitch-helix"

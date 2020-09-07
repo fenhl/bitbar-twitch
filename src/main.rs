@@ -25,17 +25,31 @@ use {
         prelude::*
     },
     derive_more::From,
+    futures::stream::{
+        self,
+        StreamExt as _,
+        TryStreamExt as _
+    },
     itertools::Itertools as _,
     notify_rust::Notification,
-    serde::Deserialize,
-    crate::{
-        data::Data,
-        paginated::PaginatedList
-    }
+    pin_utils::pin_mut,
+    twitch_helix::{
+        Client,
+        model::{
+            Follow,
+            Game,
+            GameId,
+            Stream,
+            StreamId,
+            StreamType,
+            User,
+            UserId
+        }
+    },
+    crate::data::Data
 };
 
 mod data;
-mod paginated;
 
 const CLIENT_ID: &str = "pe6plnyoh4yy8swie5nt80n84ynyft";
 
@@ -52,11 +66,9 @@ enum Error {
     MissingCliArg,
     MissingUserId,
     MissingUserInfo,
-    Reqwest(reqwest::Error),
     StreamType,
     Timespec(timespec::Error),
-    UnclonableRequestBuilder,
-    UnknownSubcommand(String)
+    Twitch(twitch_helix::Error)
 }
 
 impl From<Infallible> for Error {
@@ -96,37 +108,12 @@ impl<T> ResultNeverExt<T> for Result<T, Infallible> {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Follow {
-    to_id: String
+trait StreamExt: Sized {
+    fn error_for_type(self) -> Result<Self, Error>;
+    fn menu_item(&self, current_exe: &Path, user: &User) -> MenuItem;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
-struct User {
-    id: String,
-    login: String,
-    display_name: String
-}
-
-#[derive(Debug, Deserialize)]
-struct Game {
-    id: String,
-    name: String
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
-struct Stream {
-    game_id: String,
-    id: String,
-    started_at: DateTime<Utc>,
-    title: String,
-    #[serde(rename = "type")]
-    stream_type: StreamType,
-    user_id: String,
-    viewer_count: usize
-}
-
-impl Stream {
+impl StreamExt for Stream {
     fn error_for_type(self) -> Result<Stream, Error> {
         match self.stream_type {
             StreamType::Live => Ok(self),
@@ -134,7 +121,7 @@ impl Stream {
         }
     }
 
-    fn menu_item(self, current_exe: &Path, user: &User) -> MenuItem {
+    fn menu_item(&self, current_exe: &Path, user: &User) -> MenuItem {
         let time_live = Utc::now() - self.started_at;
         let time_live = if time_live >= Duration::hours(1) {
             format!("{}h {}m", time_live.num_hours(), time_live.num_minutes() % 60)
@@ -143,7 +130,7 @@ impl Stream {
         };
         let channel_url = format!("https://twitch.tv/{}", user.login);
         ContentItem::new(&user.display_name).sub(vec![
-            MenuItem::new(self.title),
+            MenuItem::new(&self.title),
             ContentItem::new(format!("Watch (Live for {})", time_live))
                 .command(("/usr/local/bin/iina", &channel_url))
                 .alt(ContentItem::new("Watch in Browser").href(channel_url).expect("invalid stream URL"))
@@ -151,74 +138,44 @@ impl Stream {
             ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login)).expect("invalid chat URL").into(),
             MenuItem::Sep,
             ContentItem::new("Hide This Stream").command((current_exe.display(), "hide-stream", &self.id)).refresh().into(),
-            ContentItem::new("Hide This Game").command((current_exe.display(), "hide-game", &user.id, self.game_id)).refresh().into()
+            ContentItem::new("Hide This Game").command((current_exe.display(), "hide-game", &user.id, &self.game_id)).refresh().into()
         ]).into()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-enum StreamType {
-    #[serde(rename = "live")]
-    Live,
-    #[serde(rename = "")]
-    Error
-}
-
-fn bitbar() -> Result<Menu, Error> {
+async fn bitbar() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
         return Ok(Menu::default());
     }
     let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
-    let client = reqwest::Client::new();
-    let follows = PaginatedList::from(
-        client.get("https://api.twitch.tv/helix/users/follows")
-            .query(&[("from_id", data.user_id.as_ref().ok_or(Error::MissingUserId)?)])
-            .header("client-id", CLIENT_ID)
-            .header("Authorization", format!("Bearer {}", access_token))
-    );
-    let mut users = HashMap::<String, User>::default();
-    let online_streams = follows
-        .chunks(100)
-        .into_iter()
-        .flat_map(|chunk| match chunk.collect::<Result<Vec<_>, _>>() {
-            Ok(chunk) => {
-                match PaginatedList::<User>::from(
-                    client.get("https://api.twitch.tv/helix/users")
-                        .query(&chunk.iter().map(|Follow { to_id, .. }| ("id", to_id)).collect::<Vec<_>>())
-                        .header("client-id", CLIENT_ID)
-                        .header("Authorization", format!("Bearer {}", access_token))
-                ).map(|user| user.map(|user| (user.id.clone(), user)))
-                .collect::<Result<Vec<_>, _>>() {
-                    Ok(user_chunk) => { users.extend(user_chunk); }
-                    Err(e) => { return Box::new(iter::once(Err(e))) as Box<dyn Iterator<Item = _>>; }
-                }
-                Box::new(PaginatedList::from(
-                    client.get("https://api.twitch.tv/helix/streams")
-                        .query(&chunk.iter().map(|Follow { to_id, .. }| ("user_id", to_id)).collect::<Vec<_>>())
-                        .header("client-id", CLIENT_ID)
-                        .header("Authorization", format!("Bearer {}", access_token))
-                ))
-            }
-            Err(e) => Box::new(iter::once(Err(e))) as Box<dyn Iterator<Item = Result<Stream, _>>>
-        })
-        .map(|stream| stream.and_then(Stream::error_for_type))
-        .collect::<Result<Vec<_>, _>>()?;
+    let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, access_token)?;
+    let follows = Follow::from(&client, data.user_id.as_ref().ok_or(Error::MissingUserId)?.clone()).chunks(100);
+    pin_mut!(follows);
+    let mut users = HashMap::<UserId, User>::default();
+    let mut online_streams = Vec::default();
+    while let Some(chunk) = follows.next().await {
+        let chunk = chunk.into_iter().collect::<Result<Vec<_>, _>>()?;
+        let user_chunk = User::list(&client, chunk.iter().map(|Follow { to_id, .. }| to_id.clone()).collect())
+            .map_ok(|user| (user.id.clone(), user))
+            .try_collect::<Vec<_>>().await?;
+        users.extend(user_chunk);
+        let streams = Stream::list(&client, None, Some(chunk.into_iter().map(|Follow { to_id, .. }| to_id).collect()), None);
+        pin_mut!(streams);
+        while let Some(stream) = streams.try_next().await? {
+            online_streams.push(stream.error_for_type()?);
+        }
+    }
     let game_ids = online_streams.iter().map(|stream| stream.game_id.clone()).collect::<HashSet<_>>();
-    let games = game_ids.into_iter()
+    let games = stream::iter(game_ids)
         .chunks(100)
-        .into_iter()
-        .flat_map(|chunk|
-            Box::new(PaginatedList::<Game>::from(
-                client.get("https://api.twitch.tv/helix/games")
-                    .query(&chunk.map(|game_id| ("id", game_id)).collect::<Vec<_>>())
-                    .header("client-id", CLIENT_ID)
-                    .header("Authorization", format!("Bearer {}", access_token))
-            ))
-        )
-        .map(|result| result.map(|game| (game.id.clone(), game)))
-        .collect::<Result<HashMap<_, _>, _>>()?;
+        .map(|chunk| Ok::<_, Error>(
+            Game::list(&client, chunk.into_iter().collect()).map_err(Error::from)
+        ))
+        .try_flatten()
+        .map_ok(|game| (game.id.clone(), game))
+        .try_collect::<HashMap<_, _>>().await?;
     data.hidden_streams = data.hidden_streams.intersection(&online_streams.iter().map(|stream| stream.id.clone()).collect()).cloned().collect();
     data.save()?;
     let online_streams = online_streams.into_iter()
@@ -227,9 +184,9 @@ fn bitbar() -> Result<Menu, Error> {
             && data.hidden_games.get(&stream.user_id).map_or(true, |user_hidden_games| !user_hidden_games.contains(&stream.game_id))
         )
         .collect::<Vec<_>>();
-    let mut streams_by_game = HashMap::<_, HashSet<_>>::default();
+    let mut streams_by_game = HashMap::<_, Vec<_>>::default();
     for stream in &online_streams {
-        streams_by_game.entry(stream.game_id.clone()).or_default().insert(stream.clone());
+        streams_by_game.entry(stream.game_id.clone()).or_default().push(stream.clone());
     }
     if online_streams.is_empty() { return Ok(Menu::default()); }
     Ok(vec![
@@ -237,11 +194,11 @@ fn bitbar() -> Result<Menu, Error> {
         Ok(MenuItem::Sep)
     ].into_iter().chain(
         streams_by_game.into_iter()
-            .sorted_by_key(|(_, streams)| -(streams.iter().map(|stream| stream.viewer_count).sum::<usize>() as isize))
+            .sorted_by_key(|(_, streams)| -(streams.iter().map(|stream| stream.viewer_count).sum::<u64>() as isize))
             .flat_map(|(game_id, streams)|
                 vec![
                     Ok(MenuItem::Sep),
-                    Ok(MenuItem::new(games.get(&game_id).map_or(&game_id, |game| &game.name))),
+                    Ok(MenuItem::new(games.get(&game_id).map_or(&game_id.0, |game| &game.name))),
                 ].into_iter()
                     .chain(streams.into_iter().sorted_by_key(|stream| -(stream.viewer_count as isize)).map(|stream| {
                         let user = users.get(&stream.user_id).ok_or(Error::MissingUserInfo)?;
@@ -308,7 +265,17 @@ fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
                 .color("blue").expect("failed to parse the color blue")
                 .into());
         }
-        Error::Reqwest(e) => {
+        Error::Twitch(twitch_helix::Error::HttpStatus(e, body)) => {
+            let url = e.url().expect("missing URL in HTTP status error");
+            menu.push(ContentItem::new(&e)
+                .href(url.clone()).expect("failed to parse the request error URL")
+                .color("blue").expect("failed to parse the color blue")
+                .into());
+            if let Ok(body) = body {
+                menu.push(MenuItem::new(body));
+            }
+        }
+        Error::Twitch(twitch_helix::Error::Reqwest(e)) => {
             menu.push(MenuItem::new(format!("reqwest error: {}", e)));
             if let Some(url) = e.url() {
                 menu.push(ContentItem::new(format!("URL: {}", url))
@@ -337,19 +304,20 @@ fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
 
 fn hide_game(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
     let mut data = Data::load()?;
-    data.hidden_games.entry(args.next().ok_or(Error::MissingCliArg)?).or_default().insert(args.next().ok_or(Error::MissingCliArg)?);
+    data.hidden_games.entry(UserId(args.next().ok_or(Error::MissingCliArg)?)).or_default().insert(GameId(args.next().ok_or(Error::MissingCliArg)?));
     data.save()?;
     Ok(())
 }
 
 fn hide_stream(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
     let mut data = Data::load()?;
-    data.hidden_streams.insert(args.next().ok_or(Error::MissingCliArg)?);
+    data.hidden_streams.insert(StreamId(args.next().ok_or(Error::MissingCliArg)?));
     data.save()?;
     Ok(())
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut args = env::args().skip(1);
     if let Some(arg) = args.next() {
         match &arg[..] {
@@ -362,7 +330,7 @@ fn main() {
             }
         }
     } else {
-        match bitbar() {
+        match bitbar().await {
             Ok(menu) => { print!("{}", menu); }
             Err(e) => {
                 let mut menu = vec![

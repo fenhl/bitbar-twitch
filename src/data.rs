@@ -11,6 +11,11 @@ use {
         Deserialize,
         Serialize
     },
+    twitch_helix::model::{
+        GameId,
+        StreamId,
+        UserId
+    },
     crate::Error
 };
 
@@ -22,10 +27,10 @@ pub(crate) struct Data {
     pub(crate) defer_deltas: Vec<Vec<String>>,
     pub(crate) deferred: Option<DateTime<Utc>>,
     #[serde(default)]
-    pub(crate) hidden_games: BTreeMap<String, BTreeSet<String>>,
+    pub(crate) hidden_games: BTreeMap<UserId, BTreeSet<GameId>>,
     #[serde(default)]
-    pub(crate) hidden_streams: BTreeSet<String>,
-    pub(crate) user_id: Option<String>
+    pub(crate) hidden_streams: BTreeSet<StreamId>,
+    pub(crate) user_id: Option<UserId>
 }
 
 impl Data {
