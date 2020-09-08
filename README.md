@@ -1,4 +1,4 @@
-This is a [BitBar](https://getbitbar.com/) plugin that shows live Twitch streams of users you follow.
+This is a [BitBar](https://getbitbar.com/) plugin that shows live [Twitch](https://twitch.tv/) streams of users you follow.
 
 # Installation
 
