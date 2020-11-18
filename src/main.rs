@@ -4,34 +4,34 @@ use {
     std::{
         collections::{
             HashMap,
-            HashSet
+            HashSet,
         },
         convert::Infallible,
         env,
+        ffi::OsString,
         fmt,
         io,
         iter,
         path::Path,
-        process::Output
+        process::Output,
     },
     bitbar::{
         Command,
         ContentItem,
         Menu,
-        MenuItem
+        MenuItem,
     },
     chrono::{
         Duration,
-        prelude::*
+        prelude::*,
     },
     derive_more::From,
     futures::stream::{
         self,
         StreamExt as _,
-        TryStreamExt as _
+        TryStreamExt as _,
     },
     itertools::Itertools as _,
-    notify_rust::Notification,
     pin_utils::pin_mut,
     twitch_helix::{
         Client,
@@ -43,10 +43,10 @@ use {
             StreamId,
             StreamType,
             User,
-            UserId
-        }
+            UserId,
+        },
     },
-    crate::data::Data
+    crate::data::Data,
 };
 
 mod data;
@@ -65,9 +65,10 @@ enum Error {
     MissingAccessToken,
     MissingCliArg,
     MissingUserInfo,
+    OsString(OsString),
     StreamType,
     Timespec(timespec::Error),
-    Twitch(twitch_helix::Error)
+    Twitch(twitch_helix::Error),
 }
 
 impl From<Infallible> for Error {
@@ -94,7 +95,6 @@ impl CommandOutputExt for Output {
     }
 }
 
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -107,12 +107,53 @@ impl fmt::Display for Error {
             Error::MissingAccessToken => write!(f, "no access token configured"),
             Error::MissingCliArg => write!(f, "subcommand needs more parameters"),
             Error::MissingUserInfo => write!(f, "a followed user's data was lost"),
+            Error::OsString(_) => write!(f, "found OsString with invalid UTF-8"),
             Error::StreamType => write!(f, "unsupported stream type"),
             Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display for timespec::Error and use here
-            Error::Twitch(e) => e.fmt(f)
+            Error::Twitch(e) => e.fmt(f),
         }
     }
 }
+
+impl From<Error> for Menu {
+    fn from(e: Error) -> Menu {
+        let mut menu = Vec::default();
+        match e {
+            Error::MissingAccessToken => {
+                menu.push(MenuItem::new(e));
+                menu.push(ContentItem::new("Log In")
+                    .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
+                    .color("blue").expect("failed to parse the color blue")
+                    .into());
+            }
+            Error::Twitch(twitch_helix::Error::HttpStatus(e, body)) => {
+                let url = e.url().expect("missing URL in HTTP status error");
+                menu.push(ContentItem::new(&e)
+                    .href(url.clone()).expect("failed to parse the request error URL")
+                    .color("blue").expect("failed to parse the color blue")
+                    .into());
+                if let Ok(body) = body {
+                    menu.push(MenuItem::new(body));
+                }
+            }
+            Error::Twitch(twitch_helix::Error::Reqwest(e)) => {
+                menu.push(MenuItem::new(format!("reqwest error: {}", e)));
+                if let Some(url) = e.url() {
+                    menu.push(ContentItem::new(format!("URL: {}", url))
+                        .href(url.clone()).expect("failed to parse the request error URL")
+                        .color("blue").expect("failed to parse the color blue")
+                        .into());
+                }
+            }
+            _ => {
+                menu.push(MenuItem::new(&e));
+                menu.push(MenuItem::new(format!("{:?}", e)));
+            }
+        }
+        Menu(menu)
+    }
+}
+
 trait ResultNeverExt<T> {
     fn never_unwrap(self) -> T;
 }
@@ -121,7 +162,7 @@ impl<T> ResultNeverExt<T> for Result<T, Infallible> {
     fn never_unwrap(self) -> T {
         match self {
             Ok(inner) => inner,
-            Err(never) => match never {}
+            Err(never) => match never {},
         }
     }
 }
@@ -135,7 +176,7 @@ impl StreamExt for Stream {
     fn error_for_type(self) -> Result<Stream, Error> {
         match self.stream_type {
             StreamType::Live => Ok(self),
-            StreamType::Error => Err(Error::StreamType)
+            StreamType::Error => Err(Error::StreamType),
         }
     }
 
@@ -155,13 +196,43 @@ impl StreamExt for Stream {
                 .into(),
             ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login)).expect("invalid chat URL").into(),
             MenuItem::Sep,
-            ContentItem::new("Hide This Stream").command((current_exe.display(), "hide-stream", &self.id)).refresh().into(),
-            ContentItem::new("Hide This Game").command((current_exe.display(), "hide-game", &user.id, &self.game_id)).refresh().into()
+            ContentItem::new("Hide This Stream").command((current_exe.display(), "hide_stream", &self.id)).refresh().into(),
+            ContentItem::new("Hide This Game").command((current_exe.display(), "hide_game", &user.id, &self.game_id)).refresh().into(),
         ]).into()
     }
 }
 
-async fn bitbar() -> Result<Menu, Error> {
+#[bitbar::command]
+fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+    let mut args = args.peekable();
+    let mut data = Data::load()?;
+    data.deferred = Some(if args.peek().is_some() {
+        timespec::next(args.map(OsString::into_string).collect::<Result<Vec<_>, _>>()?)?.ok_or(Error::EmptyTimespec)?
+    } else {
+        return Err(Error::MissingCliArg);
+    });
+    data.save()?;
+    Ok(())
+}
+
+#[bitbar::command]
+fn hide_game(mut args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+    let mut data = Data::load()?;
+    data.hidden_games.entry(UserId(args.next().ok_or(Error::MissingCliArg)?.into_string()?)).or_default().insert(GameId(args.next().ok_or(Error::MissingCliArg)?.into_string()?));
+    data.save()?;
+    Ok(())
+}
+
+#[bitbar::command]
+fn hide_stream(mut args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+    let mut data = Data::load()?;
+    data.hidden_streams.insert(StreamId(args.next().ok_or(Error::MissingCliArg)?.into_string()?));
+    data.save()?;
+    Ok(())
+}
+
+#[bitbar::main("../assets/glitch.png")]
+async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
@@ -209,7 +280,7 @@ async fn bitbar() -> Result<Menu, Error> {
     if online_streams.is_empty() { return Ok(Menu::default()); }
     Ok(vec![
         Ok(ContentItem::new(online_streams.len()).template_image(&include_bytes!("../assets/glitch.png")[..])?.into()),
-        Ok(MenuItem::Sep)
+        Ok(MenuItem::Sep),
     ].into_iter().chain(
         streams_by_game.into_iter()
             .sorted_by_key(|(_, streams)| -(streams.iter().map(|stream| stream.viewer_count).sum::<u64>() as isize))
@@ -243,124 +314,4 @@ async fn bitbar() -> Result<Menu, Error> {
         )
         .collect()
     }).collect::<Result<Menu, Error>>()?)
-}
-
-fn notify(summary: impl fmt::Display, body: impl fmt::Display) {
-    //let _ = notify_rust::set_application(&notify_rust::get_bundle_identifier_or_default("BitBar")); //TODO uncomment when https://github.com/h4llow3En/mac-notification-sys/issues/8 is fixed
-    let _ = Notification::default()
-        .summary(&summary.to_string())
-        .sound_name("Funk")
-        .body(&body.to_string())
-        .show();
-}
-
-trait ResultExt {
-    type Ok;
-
-    fn notify(self, summary: impl fmt::Display) -> Self::Ok;
-}
-
-impl<T, E: fmt::Debug> ResultExt for Result<T, E> {
-    type Ok = T;
-
-    fn notify(self, summary: impl fmt::Display) -> T {
-        match self {
-            Ok(t) => t,
-            Err(e) => {
-                notify(&summary, format!("{:?}", e));
-                panic!("{}: {:?}", summary, e);
-            }
-        }
-    }
-}
-
-fn error_menu(e: Error, menu: &mut Vec<MenuItem>) {
-    match e {
-        Error::MissingAccessToken => {
-            menu.push(MenuItem::new(e));
-            menu.push(ContentItem::new("Log In")
-                .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
-                .color("blue").expect("failed to parse the color blue")
-                .into());
-        }
-        Error::Twitch(twitch_helix::Error::HttpStatus(e, body)) => {
-            let url = e.url().expect("missing URL in HTTP status error");
-            menu.push(ContentItem::new(&e)
-                .href(url.clone()).expect("failed to parse the request error URL")
-                .color("blue").expect("failed to parse the color blue")
-                .into());
-            if let Ok(body) = body {
-                menu.push(MenuItem::new(body));
-            }
-        }
-        Error::Twitch(twitch_helix::Error::Reqwest(e)) => {
-            menu.push(MenuItem::new(format!("reqwest error: {}", e)));
-            if let Some(url) = e.url() {
-                menu.push(ContentItem::new(format!("URL: {}", url))
-                    .href(url.clone()).expect("failed to parse the request error URL")
-                    .color("blue").expect("failed to parse the color blue")
-                    .into());
-            }
-        }
-        _ => {
-            menu.push(MenuItem::new(&e));
-            menu.push(MenuItem::new(format!("{:?}", e)));
-        }
-    }
-}
-
-// subcommands
-
-fn defer(args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut args = args.peekable();
-    let mut data = Data::load()?;
-    data.deferred = Some(if args.peek().is_some() {
-        timespec::next(args)?.ok_or(Error::EmptyTimespec)?
-    } else {
-        return Err(Error::MissingCliArg);
-    });
-    data.save()?;
-    Ok(())
-}
-
-fn hide_game(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut data = Data::load()?;
-    data.hidden_games.entry(UserId(args.next().ok_or(Error::MissingCliArg)?)).or_default().insert(GameId(args.next().ok_or(Error::MissingCliArg)?));
-    data.save()?;
-    Ok(())
-}
-
-fn hide_stream(mut args: impl Iterator<Item = String>) -> Result<(), Error> {
-    let mut data = Data::load()?;
-    data.hidden_streams.insert(StreamId(args.next().ok_or(Error::MissingCliArg)?));
-    data.save()?;
-    Ok(())
-}
-
-#[tokio::main]
-async fn main() {
-    let mut args = env::args().skip(1);
-    if let Some(arg) = args.next() {
-        match &arg[..] {
-            "defer" => defer(args).notify("error in defer cmd"),
-            "hide-game" => hide_game(args).notify("error in hide-game cmd"),
-            "hide-stream" => hide_stream(args).notify("error in hide-stream cmd"),
-            _ => {
-                notify("error in bitbar-twitch", format!("unknown subcommand: {}", arg));
-                panic!("unknown subcommand: {}", arg);
-            }
-        }
-    } else {
-        match bitbar().await {
-            Ok(menu) => { print!("{}", menu); }
-            Err(e) => {
-                let mut menu = vec![
-                    ContentItem::new("?").template_image(&include_bytes!("../assets/glitch.png")[..]).never_unwrap().into(),
-                    MenuItem::Sep
-                ];
-                error_menu(e, &mut menu);
-                print!("{}", Menu(menu));
-            }
-        }
-    }
 }

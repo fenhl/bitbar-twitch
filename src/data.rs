@@ -2,14 +2,14 @@ use {
     std::{
         collections::{
             BTreeMap,
-            BTreeSet
+            BTreeSet,
         },
-        fs::File
+        fs::File,
     },
     chrono::prelude::*,
     serde::{
         Deserialize,
-        Serialize
+        Serialize,
     },
     twitch_helix::{
         Client,
@@ -17,10 +17,10 @@ use {
             GameId,
             StreamId,
             User,
-            UserId
-        }
+            UserId,
+        },
     },
-    crate::Error
+    crate::Error,
 };
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -34,7 +34,7 @@ pub(crate) struct Data {
     pub(crate) hidden_games: BTreeMap<UserId, BTreeSet<GameId>>,
     #[serde(default)]
     pub(crate) hidden_streams: BTreeSet<StreamId>,
-    user_id: Option<UserId>
+    user_id: Option<UserId>,
 }
 
 impl Data {
