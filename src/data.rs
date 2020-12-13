@@ -38,7 +38,7 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub(crate) async fn get_user_id(&mut self, client: &Client) -> Result<UserId, Error> {
+    pub(crate) async fn get_user_id(&mut self, client: &Client<'_>) -> Result<UserId, Error> {
         if let Some(ref user_id) = self.user_id { return Ok(user_id.clone()); }
         let id = User::me(client).await?.id;
         assert!(self.user_id.replace(id.clone()).is_none());

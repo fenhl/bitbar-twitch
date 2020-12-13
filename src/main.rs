@@ -1,4 +1,4 @@
-#![deny(rust_2018_idioms, unused, unused_import_braces, unused_qualifications, warnings)]
+#![deny(rust_2018_idioms, unused, unused_import_braces, unused_lifetimes, unused_qualifications, warnings)]
 
 use {
     std::{
@@ -35,6 +35,7 @@ use {
     pin_utils::pin_mut,
     twitch_helix::{
         Client,
+        Credentials,
         model::{
             Follow,
             Game,
@@ -60,6 +61,7 @@ enum Error {
     #[from(ignore)]
     CommandLength(usize),
     EmptyTimespec,
+    InvalidAccessToken,
     Io(io::Error),
     Json(serde_json::Error),
     MissingAccessToken,
@@ -68,7 +70,19 @@ enum Error {
     OsString(OsString),
     StreamType,
     Timespec(timespec::Error),
+    #[from(ignore)]
     Twitch(twitch_helix::Error),
+}
+
+impl From<twitch_helix::Error> for Error {
+    fn from(e: twitch_helix::Error) -> Error {
+        if let twitch_helix::Error::HttpStatus(ref e, _ /*body*/) = e {
+            if e.status() == Some(reqwest::StatusCode::UNAUTHORIZED) { //TODO also check body
+                return Error::InvalidAccessToken
+            }
+        }
+        Error::Twitch(e)
+    }
 }
 
 impl From<Infallible> for Error {
@@ -104,6 +118,7 @@ impl fmt::Display for Error {
             Error::EmptyTimespec => write!(f, "timespec must not be empty"),
             Error::Io(e) => write!(f, "I/O error: {}", e),
             Error::Json(e) => write!(f, "JSON error: {}", e),
+            Error::InvalidAccessToken => write!(f, "invalid or expired access token"),
             Error::MissingAccessToken => write!(f, "no access token configured"),
             Error::MissingCliArg => write!(f, "subcommand needs more parameters"),
             Error::MissingUserInfo => write!(f, "a followed user's data was lost"),
@@ -119,7 +134,7 @@ impl From<Error> for Menu {
     fn from(e: Error) -> Menu {
         let mut menu = Vec::default();
         match e {
-            Error::MissingAccessToken => {
+            Error::InvalidAccessToken | Error::MissingAccessToken => {
                 menu.push(MenuItem::new(e));
                 menu.push(ContentItem::new("Log In")
                     .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
@@ -231,7 +246,7 @@ fn hide_stream(mut args: impl Iterator<Item = OsString>) -> Result<(), Error> {
     Ok(())
 }
 
-#[bitbar::main("../assets/glitch.png")]
+#[bitbar::main(error_template_image = "../assets/glitch.png")]
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
@@ -239,7 +254,7 @@ async fn main() -> Result<Menu, Error> {
         return Ok(Menu::default());
     }
     let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
-    let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, access_token)?;
+    let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, Credentials::from_oauth_token(access_token))?;
     let follows = Follow::from(&client, data.get_user_id(&client).await?).chunks(100);
     pin_mut!(follows);
     let mut users = HashMap::<UserId, User>::default();

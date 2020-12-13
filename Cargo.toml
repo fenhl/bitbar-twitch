@@ -5,19 +5,25 @@ authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2018"
 
 [dependencies]
-derive_more = "0.99"
-itertools = "0.8"
+itertools = "0.9"
 pin-utils = "0.1"
+reqwest = "0.10"
 serde_json = "1"
 xdg-basedir = "1"
 
 [dependencies.bitbar]
 version = "0.4"
-features = ["base64", "url1"]
+default-features = false
+features = ["base64", "tokio02", "url1"] #TODO update to tokio 0.3 once supported by twitch_helix
 
 [dependencies.chrono]
 version = "0.4"
 features = ["serde"]
+
+[dependencies.derive_more]
+version = "0.99"
+default-features = false
+features = ["from"]
 
 [dependencies.futures]
 version = "0.3"
@@ -28,10 +34,12 @@ features = ["derive"]
 
 [dependencies.timespec]
 git = "https://github.com/fenhl/rust-timespec"
+branch = "main"
 
 [dependencies.tokio]
-version = "0.2"
+version = "0.2" #TODO update to 0.3 once supported by twitch_helix
 features = ["macros", "rt-threaded"]
 
 [dependencies.twitch_helix]
 git = "https://github.com/fenhl/rust-twitch-helix"
+branch = "main"
