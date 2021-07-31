@@ -1,4 +1,5 @@
-#![deny(rust_2018_idioms, unused, unused_import_braces, unused_lifetimes, unused_qualifications, warnings)]
+#![deny(rust_2018_idioms, unused, unused_crate_dependencies, unused_import_braces, unused_lifetimes, unused_qualifications, warnings)]
+#![forbid(unsafe_code)]
 
 use {
     std::{
@@ -26,13 +27,15 @@ use {
         prelude::*,
     },
     derive_more::From,
-    futures::stream::{
-        self,
-        StreamExt as _,
-        TryStreamExt as _,
+    futures::{
+        pin_mut,
+        stream::{
+            self,
+            StreamExt as _,
+            TryStreamExt as _,
+        },
     },
     itertools::Itertools as _,
-    pin_utils::pin_mut,
     twitch_helix::{
         Client,
         Credentials,
