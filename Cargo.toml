@@ -11,7 +11,7 @@ serde_json = "1"
 xdg-basedir = "1"
 
 [dependencies.bitbar]
-version = "0.4"
+version = "0.5"
 features = ["base64", "url1"]
 
 [dependencies.chrono]

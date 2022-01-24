@@ -17,10 +17,10 @@ use {
         process::Output,
     },
     bitbar::{
-        Command,
         ContentItem,
         Menu,
         MenuItem,
+        attr::Command,
     },
     chrono::{
         Duration,
@@ -209,13 +209,13 @@ impl StreamExt for Stream {
         ContentItem::new(&user.display_name).sub(vec![
             MenuItem::new(&self.title),
             ContentItem::new(format!("Watch (Live for {})", time_live))
-                .command(("/usr/local/bin/iina", &channel_url))
+                .command(("/usr/local/bin/iina", &channel_url)).never_unwrap()
                 .alt(ContentItem::new("Watch in Browser").href(channel_url).expect("invalid stream URL"))
                 .into(),
             ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login)).expect("invalid chat URL").into(),
             MenuItem::Sep,
-            ContentItem::new("Hide This Stream").command((current_exe.display(), "hide_stream", &self.id)).refresh().into(),
-            ContentItem::new("Hide This Game").command((current_exe.display(), "hide_game", &user.id, &self.game_id)).refresh().into(),
+            ContentItem::new("Hide This Stream").command((current_exe.display(), "hide_stream", &self.id)).never_unwrap().refresh().into(),
+            ContentItem::new("Hide This Game").command((current_exe.display(), "hide_game", &user.id, &self.game_id)).never_unwrap().refresh().into(),
         ]).into()
     }
 }
@@ -325,7 +325,7 @@ async fn main() -> Result<Menu, Error> {
                                 .chain(delta)
                                 .collect::<Vec<_>>()
                         ).map_err(|v| Error::CommandLength(v.len()))?
-                    )
+                    )?
                     .refresh()
                     .into()
             ))
