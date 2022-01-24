@@ -2,7 +2,7 @@
 name = "bitbar-twitch"
 version = "0.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 itertools = "0.10"
