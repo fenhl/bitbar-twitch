@@ -18,3 +18,12 @@ This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [
 # Notes
 
 * Clicking “Watch” tries to open [IINA](https://iina.io/) by default. By holding <kbd>⌥</kbd>, you can open streams in your browser instead.
+
+# Configuration
+
+The configuration file lives in a [JSON](https://json.org/) file at <code>[$XDG_DATA_DIRS](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)/bitbar/plugin-cache/twitch.json</code>. It may contain the following entries, all optional:
+
+* `accessToken`: A Twitch API key for the plugin. If this is missing, the plugin will display instructions for generating it.
+* `deferDeltas`: An array of [timespecs](https://github.com/fenhl/timespec#syntax) given as arrays of strings. For each timespec listed, the plugin will generate menu items to hide itself until the next datetime matching that timespec.
+
+Additionally, the entries `deferred`, `hiddenGames`, and `hiddenStreams` are managed automatically by the plugin.
