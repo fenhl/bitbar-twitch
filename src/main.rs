@@ -53,6 +53,9 @@ mod data;
 
 const CLIENT_ID: &str = "pe6plnyoh4yy8swie5nt80n84ynyft";
 
+#[cfg(target_arch = "x86_64")] const IINA_PATH: &str = "/usr/local/bin/iina";
+#[cfg(target_arch = "aarch64")] const IINA_PATH: &str = "/opt/homebrew/bin/iina";
+
 #[derive(Debug, Error)]
 enum Error {
     #[error(transparent)] Basedir(#[from] xdg_basedir::Error),
@@ -178,7 +181,7 @@ impl StreamExt for Stream {
         Ok(ContentItem::new(&user.display_name).sub(vec![
             MenuItem::new(&self.title),
             ContentItem::new(format!("Watch (Live for {})", time_live))
-                .command(("/usr/local/bin/iina", &channel_url)).never_unwrap()
+                .command((IINA_PATH, &channel_url)).never_unwrap()
                 .alt(ContentItem::new("Watch in Browser").href(channel_url)?)
                 .into(),
             ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login))?.into(),
