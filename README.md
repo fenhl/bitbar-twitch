@@ -17,7 +17,7 @@ This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [
 
 # Notes
 
-* Clicking “Watch” tries to open [IINA](https://iina.io/) by default. By holding <kbd>⌥</kbd>, you can open streams in your browser instead.
+* Clicking “Watch” tries to open [IINA](https://iina.io/) by default. (If you have Homebrew, you can install it with `brew install --cask iina`.) By holding <kbd>⌥</kbd>, you can open streams in your browser instead.
 
 # Configuration
 
