@@ -14,7 +14,7 @@ xdg-basedir = "1"
 
 [dependencies.bitbar]
 version = "0.6"
-features = ["base64", "url1"]
+features = ["base64"]
 
 [dependencies.chrono]
 version = "0.4"
