@@ -10,11 +10,7 @@ use {
         convert::Infallible,
         env,
         ffi::OsString,
-        fmt,
         io,
-        iter,
-        path::Path,
-        process::Output,
     },
     bitbar::{
         ContentItem,
@@ -26,7 +22,6 @@ use {
         Duration,
         prelude::*,
     },
-    derive_more::From,
     futures::{
         pin_mut,
         stream::{
@@ -36,6 +31,7 @@ use {
         },
     },
     itertools::Itertools as _,
+    thiserror::Error,
     twitch_helix::{
         Client,
         Credentials,
@@ -57,24 +53,36 @@ mod data;
 
 const CLIENT_ID: &str = "pe6plnyoh4yy8swie5nt80n84ynyft";
 
-#[derive(Debug, From)]
+#[derive(Debug, Error)]
 enum Error {
-    Basedir(xdg_basedir::Error),
-    CommandExit(&'static str, Output),
-    #[from(ignore)]
+    #[error(transparent)] Basedir(#[from] xdg_basedir::Error),
+    #[error(transparent)] Io(#[from] io::Error),
+    #[error(transparent)] Json(#[from] serde_json::Error),
+    #[error(transparent)] Timespec(#[from] timespec::Error),
+    #[error(transparent)] Twitch(twitch_helix::Error),
+    #[error(transparent)] UrlParse(#[from] url::ParseError),
+    #[error("attempted to create command menu item with {0} args")]
     CommandLength(usize),
+    #[error("timespec must not be empty")]
     EmptyTimespec,
+    #[error("invalid or expired access token")]
     InvalidAccessToken,
-    Io(io::Error),
-    Json(serde_json::Error),
+    #[error("no access token configured")]
     MissingAccessToken,
+    #[error("subcommand needs more parameters")]
     MissingCliArg,
+    #[error("a followed user's data was lost")]
     MissingUserInfo,
+    #[error("found OsString with invalid UTF-8")]
     OsString(OsString),
+    #[error("unsupported stream type")]
     StreamType,
-    Timespec(timespec::Error),
-    #[from(ignore)]
-    Twitch(twitch_helix::Error),
+}
+
+impl From<OsString> for Error {
+    fn from(s: OsString) -> Self {
+        Self::OsString(s)
+    }
 }
 
 impl From<twitch_helix::Error> for Error {
@@ -91,45 +99,6 @@ impl From<twitch_helix::Error> for Error {
 impl From<Infallible> for Error {
     fn from(never: Infallible) -> Error {
         match never {}
-    }
-}
-
-trait CommandOutputExt {
-    type Ok;
-
-    fn check(self, name: &'static str) -> Result<Self::Ok, Error>;
-}
-
-impl CommandOutputExt for Output {
-    type Ok = Output;
-
-    fn check(self, name: &'static str) -> Result<Output, Error> {
-        if self.status.success() {
-            Ok(self)
-        } else {
-            Err(Error::CommandExit(name, self))
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Basedir(e) => e.fmt(f),
-            Error::CommandExit(cmd, output) => write!(f, "command `{}` exited with {}", cmd, output.status),
-            Error::CommandLength(len) => write!(f, "attempted to create command menu item with {} args", len),
-            Error::EmptyTimespec => write!(f, "timespec must not be empty"),
-            Error::Io(e) => write!(f, "I/O error: {}", e),
-            Error::Json(e) => write!(f, "JSON error: {}", e),
-            Error::InvalidAccessToken => write!(f, "invalid or expired access token"),
-            Error::MissingAccessToken => write!(f, "no access token configured"),
-            Error::MissingCliArg => write!(f, "subcommand needs more parameters"),
-            Error::MissingUserInfo => write!(f, "a followed user's data was lost"),
-            Error::OsString(_) => write!(f, "found OsString with invalid UTF-8"),
-            Error::StreamType => write!(f, "unsupported stream type"),
-            Error::Timespec(e) => write!(f, "timespec error: {:?}", e), //TODO implement Display for timespec::Error and use here
-            Error::Twitch(e) => e.fmt(f),
-        }
     }
 }
 
@@ -187,7 +156,7 @@ impl<T> ResultNeverExt<T> for Result<T, Infallible> {
 
 trait StreamExt: Sized {
     fn error_for_type(self) -> Result<Self, Error>;
-    fn menu_item(&self, current_exe: &Path, user: &User) -> MenuItem;
+    fn menu_item(&self, user: &User) -> Result<MenuItem, Error>;
 }
 
 impl StreamExt for Stream {
@@ -198,7 +167,7 @@ impl StreamExt for Stream {
         }
     }
 
-    fn menu_item(&self, current_exe: &Path, user: &User) -> MenuItem {
+    fn menu_item(&self, user: &User) -> Result<MenuItem, Error> {
         let time_live = Utc::now() - self.started_at;
         let time_live = if time_live >= Duration::hours(1) {
             format!("{}h {}m", time_live.num_hours(), time_live.num_minutes() % 60)
@@ -206,45 +175,44 @@ impl StreamExt for Stream {
             format!("{}m", time_live.num_minutes())
         };
         let channel_url = format!("https://twitch.tv/{}", user.login);
-        ContentItem::new(&user.display_name).sub(vec![
+        Ok(ContentItem::new(&user.display_name).sub(vec![
             MenuItem::new(&self.title),
             ContentItem::new(format!("Watch (Live for {})", time_live))
                 .command(("/usr/local/bin/iina", &channel_url)).never_unwrap()
-                .alt(ContentItem::new("Watch in Browser").href(channel_url).expect("invalid stream URL"))
+                .alt(ContentItem::new("Watch in Browser").href(channel_url)?)
                 .into(),
-            ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login)).expect("invalid chat URL").into(),
+            ContentItem::new(format!("Chat ({} Viewers)", self.viewer_count)).href(format!("https://www.twitch.tv/popout/{}/chat", user.login))?.into(),
             MenuItem::Sep,
-            ContentItem::new("Hide This Stream").command((current_exe.display(), "hide_stream", &self.id)).never_unwrap().refresh().into(),
-            ContentItem::new("Hide This Game").command((current_exe.display(), "hide_game", &user.id, &self.game_id)).never_unwrap().refresh().into(),
-        ]).into()
+            ContentItem::new("Hide This Stream").command(hide_stream(&self.id)?).never_unwrap().refresh().into(),
+            ContentItem::new("Hide This Game").command(hide_game(&user.id, &self.game_id)?).never_unwrap().refresh().into(),
+        ]).into())
     }
 }
 
-#[bitbar::command]
-fn defer(args: impl Iterator<Item = OsString>) -> Result<(), Error> {
-    let mut args = args.peekable();
+#[bitbar::command(varargs)]
+fn defer(args: Vec<String>) -> Result<(), Error> {
     let mut data = Data::load()?;
-    data.deferred = Some(if args.peek().is_some() {
-        timespec::next(args.map(OsString::into_string).collect::<Result<Vec<_>, _>>()?)?.ok_or(Error::EmptyTimespec)?
+    data.deferred = Some(if args.is_empty() {
+        return Err(Error::MissingCliArg)
     } else {
-        return Err(Error::MissingCliArg);
+        timespec::next(args)?.ok_or(Error::EmptyTimespec)?
     });
     data.save()?;
     Ok(())
 }
 
 #[bitbar::command]
-fn hide_game(mut args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+fn hide_game(user_id: UserId, game_id: GameId) -> Result<(), Error> {
     let mut data = Data::load()?;
-    data.hidden_games.entry(UserId(args.next().ok_or(Error::MissingCliArg)?.into_string()?)).or_default().insert(GameId(args.next().ok_or(Error::MissingCliArg)?.into_string()?));
+    data.hidden_games.entry(user_id).or_default().insert(game_id);
     data.save()?;
     Ok(())
 }
 
 #[bitbar::command]
-fn hide_stream(mut args: impl Iterator<Item = OsString>) -> Result<(), Error> {
+fn hide_stream(stream_id: StreamId) -> Result<(), Error> {
     let mut data = Data::load()?;
-    data.hidden_streams.insert(StreamId(args.next().ok_or(Error::MissingCliArg)?.into_string()?));
+    data.hidden_streams.insert(stream_id);
     data.save()?;
     Ok(())
 }
@@ -254,7 +222,7 @@ async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
     if data.deferred.map_or(false, |deferred| deferred >= Utc::now()) {
-        return Ok(Menu::default());
+        return Ok(Menu::default())
     }
     let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
     let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, Credentials::from_oauth_token(access_token))?;
@@ -295,41 +263,35 @@ async fn main() -> Result<Menu, Error> {
     for stream in &online_streams {
         streams_by_game.entry(stream.game_id.clone()).or_default().push(stream.clone());
     }
-    if online_streams.is_empty() { return Ok(Menu::default()); }
-    Ok(vec![
-        Ok(ContentItem::new(online_streams.len()).template_image(&include_bytes!("../assets/glitch.png")[..])?.into()),
-        Ok(MenuItem::Sep),
-    ].into_iter().chain(
-        streams_by_game.into_iter()
-            .sorted_by_key(|(_, streams)| -(streams.iter().map(|stream| stream.viewer_count).sum::<u64>() as isize))
-            .flat_map(|(game_id, streams)|
-                vec![
-                    Ok(MenuItem::Sep),
-                    Ok(MenuItem::new(games.get(&game_id).map_or(&game_id.0, |game| &game.name))),
-                ].into_iter()
-                    .chain(streams.into_iter().sorted_by_key(|stream| -(stream.viewer_count as isize)).map(|stream| {
-                        let user = users.get(&stream.user_id).ok_or(Error::MissingUserInfo)?;
-                        Ok(stream.menu_item(&current_exe, user))
-                    }))
-            )
-    ).chain(if data.defer_deltas.is_empty() {
-        Vec::default()
-    } else {
-        iter::once(Ok(MenuItem::Sep)).chain(
-            data.defer_deltas.iter().map(|delta| Ok(
-                ContentItem::new(format!("Defer Until {}", delta.join(" ")))
-                    .command(
-                        Command::try_from(
-                            vec![&format!("{}", current_exe.display()), &format!("defer")]
-                                .into_iter()
-                                .chain(delta)
-                                .collect::<Vec<_>>()
-                        ).map_err(|v| Error::CommandLength(v.len()))?
-                    )?
-                    .refresh()
-                    .into()
-            ))
-        )
-        .collect()
-    }).collect::<Result<Menu, Error>>()?)
+    if online_streams.is_empty() { return Ok(Menu::default()) }
+    let mut menu = Menu(vec![
+        ContentItem::new(online_streams.len()).template_image(&include_bytes!("../assets/glitch.png")[..])?.into(),
+        MenuItem::Sep,
+    ]);
+    for (game_id, streams) in streams_by_game.into_iter()
+        .sorted_by_key(|(_, streams)| -(streams.iter().map(|stream| stream.viewer_count).sum::<u64>() as isize))
+    {
+        menu.push(MenuItem::Sep);
+        menu.push(MenuItem::new(games.get(&game_id).map_or(&game_id.0, |game| &game.name)));
+        for stream in streams.into_iter().sorted_by_key(|stream| -(stream.viewer_count as isize)) {
+            let user = users.get(&stream.user_id).ok_or(Error::MissingUserInfo)?;
+            menu.push(stream.menu_item(user)?);
+        }
+    }
+    if !data.defer_deltas.is_empty() {
+        menu.push(MenuItem::Sep);
+        for delta in &data.defer_deltas {
+            menu.push(ContentItem::new(format!("Defer Until {}", delta.join(" ")))
+                .command(
+                    Command::try_from(
+                        vec![&format!("{}", current_exe.display()), &format!("defer")]
+                            .into_iter()
+                            .chain(delta)
+                            .collect::<Vec<_>>()
+                    ).map_err(|v| Error::CommandLength(v.len()))?
+                )?
+                .refresh());
+        }
+    }
+    Ok(menu)
 }
