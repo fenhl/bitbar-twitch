@@ -27,3 +27,7 @@ The configuration file lives in a [JSON](https://json.org/) file at <code>[$XDG_
 * `deferDeltas`: An array of [timespecs](https://github.com/fenhl/timespec#syntax) given as arrays of strings. For each timespec listed, the plugin will generate menu items to hide itself until the next datetime matching that timespec.
 
 Additionally, the entries `deferred`, `hiddenGames`, `hiddenStreams`, and `userId` are managed automatically by the plugin.
+
+# Credits
+
+This plugin is based on [the original Twitch Follows plugin](https://github.com/matryer/xbar-plugins/blob/6b85300ad6a039920a0b77a35933d73c2b0ba4d5/Web/Twitch/livestreamer-now-playing.5m.js) by [SCdF](https://github.com/SCdF), which [uses a now-defunct Twitch API](https://github.com/matryer/xbar-plugins/issues/1308) and [is no longer maintained](https://github.com/matryer/xbar-plugins/issues/1308#issuecomment-535840433).
