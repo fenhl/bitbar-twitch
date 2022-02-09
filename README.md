@@ -12,7 +12,7 @@ This is a BitBar plugin (supporting both [SwiftBar](https://swiftbar.app/) and [
     cargo install --git=https://github.com/fenhl/bitbar-twitch --branch=main
     ```
 4. Create a symlink to `~/.cargo/bin/bitbar-twitch` in your SwiftBar/xbar plugin folder. Call it something like `bitbar-twitch.1m.o`, where `1m` is the rate at which the list of streams will be refreshed.
-5. Refresh SwiftBar/xbar by opening a menu and pressing <kbd>⌘</kbd><kbd>R</kbd>.
+5. If you're using SwiftBar, the plugin should now appear in your menu bar. If it doesn't appear automatically, or if you're using xbar, refresh by opening a menu and pressing <kbd>⌘</kbd><kbd>R</kbd>.
 6. Follow the instructions in the menu to log in with your Twitch account.
 
 # Notes
