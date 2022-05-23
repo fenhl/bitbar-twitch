@@ -13,7 +13,7 @@ url = "2"
 xdg-basedir = "1"
 
 [dependencies.bitbar]
-version = "0.6"
+version = "0.7"
 features = ["base64"]
 
 [dependencies.chrono]
