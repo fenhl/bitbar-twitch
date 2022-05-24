@@ -220,7 +220,10 @@ fn hide_stream(stream_id: StreamId) -> Result<(), Error> {
     Ok(())
 }
 
-#[bitbar::main(error_template_image = "../assets/glitch.png")]
+#[bitbar::main(
+    error_template_image = "../assets/glitch.png",
+    commands(defer, hide_game, hide_stream),
+)]
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;
     let mut data = Data::load()?;
