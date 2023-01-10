@@ -4,6 +4,10 @@ version = "0.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 
+[profile.release]
+lto = true
+strip = true
+
 [dependencies]
 itertools = "0.10"
 reqwest = "0.11"
