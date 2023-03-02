@@ -112,7 +112,7 @@ impl From<Error> for Menu {
             Error::InvalidAccessToken | Error::MissingAccessToken => {
                 menu.push(MenuItem::new(e));
                 menu.push(ContentItem::new("Log In")
-                    .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fgithub.com%2Ffenhl%2Fbitbar-twitch%2Fwiki%2Foauth-landing&response_type=token&scope=").expect("failed to parse the OAuth URL")
+                    .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fbitbar-twitch.fenhl.net%2Fauth&response_type=token&scope=").expect("failed to parse the OAuth URL")
                     .color("blue").expect("failed to parse the color blue")
                     .into());
             }
