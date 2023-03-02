@@ -4,7 +4,7 @@ use {
             BTreeMap,
             BTreeSet,
         },
-        fs::File,
+        fs,
     },
     chrono::prelude::*,
     serde::{
@@ -20,8 +20,11 @@ use {
             UserId,
         },
     },
+    xdg::BaseDirectories,
     crate::Error,
 };
+
+const PATH: &str = "bitbar/plugin-cache/twitch.json";
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -46,26 +49,18 @@ impl Data {
     }
 
     pub(crate) fn load() -> Result<Data, Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        Ok(dirs.filter_map(|data_dir| File::open(data_dir.join("bitbar/plugin-cache/twitch.json")).ok())
-            .next().map_or(Ok(Data::default()), serde_json::from_reader)?)
+        Ok(if let Some(path) = BaseDirectories::new()?.find_data_file(PATH) {
+            serde_json::from_slice(&fs::read(path)?)?
+        } else {
+            Data::default()
+        })
     }
 
-    pub(crate) fn save(&mut self) -> Result<(), Error> {
-        let dirs = xdg_basedir::get_data_home().into_iter().chain(xdg_basedir::get_data_dirs());
-        for data_dir in dirs {
-            let data_path = data_dir.join("bitbar/plugin-cache/twitch.json");
-            if data_path.exists() {
-                if let Some(()) = File::create(data_path).ok()
-                    .and_then(|data_file| serde_json::to_writer_pretty(data_file, &self).ok())
-                {
-                    return Ok(());
-                }
-            }
-        }
-        let data_path = xdg_basedir::get_data_home()?.join("bitbar/plugin-cache/twitch.json");
-        let data_file = File::create(data_path)?;
-        serde_json::to_writer_pretty(data_file, &self)?;
+    pub(crate) fn save(&self) -> Result<(), Error> {
+        let path = BaseDirectories::new()?.place_data_file(PATH)?;
+        let mut buf = serde_json::to_string_pretty(self)?;
+        buf.push('\n');
+        fs::write(path, buf)?;
         Ok(())
     }
 }

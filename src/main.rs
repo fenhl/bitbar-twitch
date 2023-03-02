@@ -58,12 +58,12 @@ const CLIENT_ID: &str = "pe6plnyoh4yy8swie5nt80n84ynyft";
 
 #[derive(Debug, Error)]
 enum Error {
-    #[error(transparent)] Basedir(#[from] xdg_basedir::Error),
     #[error(transparent)] Io(#[from] io::Error),
     #[error(transparent)] Json(#[from] serde_json::Error),
     #[error(transparent)] Timespec(#[from] timespec::Error),
     #[error(transparent)] Twitch(twitch_helix::Error),
     #[error(transparent)] UrlParse(#[from] url::ParseError),
+    #[error(transparent)] Xdg(#[from] xdg::BaseDirectoriesError),
     #[error("attempted to create command menu item with {0} args")]
     CommandLength(usize),
     #[error("timespec must not be empty")]
