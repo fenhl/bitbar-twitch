@@ -1947,14 +1947,13 @@ checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
 [[package]]
 name = "timespec"
 version = "2.0.0"
-source = "git+https://github.com/fenhl/rust-timespec?branch=main#f58dd02f23c95a670b316ad8c4b68fb9947e0f80"
+source = "git+https://github.com/fenhl/rust-timespec?branch=main#d013470d0bfd9a9042c1623b7297ea214b78184e"
 dependencies = [
  "chrono",
  "chrono-tz",
  "clap 4.1.8",
  "lazy-regex",
  "thiserror",
- "time 0.1.45",
  "wheel",
 ]
 
