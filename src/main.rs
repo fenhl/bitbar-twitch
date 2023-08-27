@@ -11,6 +11,7 @@ use {
         env,
         ffi::OsString,
         io,
+        pin::pin,
     },
     bitbar::{
         ContentItem,
@@ -22,13 +23,10 @@ use {
         Duration,
         prelude::*,
     },
-    futures::{
-        pin_mut,
-        stream::{
-            self,
-            StreamExt as _,
-            TryStreamExt as _,
-        },
+    futures::stream::{
+        self,
+        StreamExt as _,
+        TryStreamExt as _,
     },
     itertools::Itertools as _,
     thiserror::Error,
@@ -232,8 +230,7 @@ async fn main() -> Result<Menu, Error> {
     }
     let access_token = data.access_token.as_ref().ok_or(Error::MissingAccessToken)?;
     let client = Client::new(concat!("bitbar-twitch/", env!("CARGO_PKG_VERSION")), CLIENT_ID, Credentials::from_oauth_token(access_token))?;
-    let follows = Follow::from(&client, data.get_user_id(&client).await?).chunks(100);
-    pin_mut!(follows);
+    let mut follows = pin!(Follow::from(&client, data.get_user_id(&client).await?).chunks(100));
     let mut users = HashMap::<UserId, User>::default();
     let mut online_streams = Vec::default();
     while let Some(chunk) = follows.next().await {
@@ -242,8 +239,7 @@ async fn main() -> Result<Menu, Error> {
             .map_ok(|user| (user.id.clone(), user))
             .try_collect::<Vec<_>>().await?;
         users.extend(user_chunk);
-        let streams = Stream::list(&client, None, Some(chunk.into_iter().map(|Follow { to_id, .. }| to_id).collect()), None);
-        pin_mut!(streams);
+        let mut streams = pin!(Stream::list(&client, None, Some(chunk.into_iter().map(|Follow { to_id, .. }| to_id).collect()), None));
         while let Some(stream) = streams.try_next().await? {
             online_streams.push(stream.error_for_type()?);
         }
