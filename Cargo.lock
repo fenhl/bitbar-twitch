@@ -307,7 +307,7 @@ dependencies = [
  "bitbar",
  "chrono",
  "futures",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "reqwest",
  "serde",
  "serde_json",
