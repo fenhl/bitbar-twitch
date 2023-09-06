@@ -2095,8 +2095,8 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "twitch_helix"
-version = "0.4.1"
-source = "git+https://github.com/fenhl/rust-twitch-helix?branch=main#b7618b50f7d3fc9aedc77bc86016f0212fc1d4cb"
+version = "0.5.0"
+source = "git+https://github.com/fenhl/rust-twitch-helix?branch=main#03cebeb3a9a6eef4ff8a201910044a0e4c2daa70"
 dependencies = [
  "async-trait",
  "chrono",
