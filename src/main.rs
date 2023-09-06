@@ -110,7 +110,7 @@ impl From<Error> for Menu {
             Error::InvalidAccessToken | Error::MissingAccessToken => {
                 menu.push(MenuItem::new(e));
                 menu.push(ContentItem::new("Log In")
-                    .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fbitbar-twitch.fenhl.net%2Fauth&response_type=token&scope=").expect("failed to parse the OAuth URL")
+                    .href("https://id.twitch.tv/oauth2/authorize?client_id=pe6plnyoh4yy8swie5nt80n84ynyft&redirect_uri=https%3A%2F%2Fbitbar-twitch.fenhl.net%2Fauth&response_type=token&scope=user:read:follows").expect("failed to parse the OAuth URL")
                     .color("blue").expect("failed to parse the color blue")
                     .into());
             }
@@ -235,11 +235,11 @@ async fn main() -> Result<Menu, Error> {
     let mut online_streams = Vec::default();
     while let Some(chunk) = follows.next().await {
         let chunk = chunk.into_iter().collect::<Result<Vec<_>, _>>()?;
-        let user_chunk = User::list(&client, chunk.iter().map(|Follow { to_id, .. }| to_id.clone()).collect())
+        let user_chunk = User::list(&client, chunk.iter().map(|Follow { broadcaster_id, .. }| broadcaster_id.clone()).collect())
             .map_ok(|user| (user.id.clone(), user))
             .try_collect::<Vec<_>>().await?;
         users.extend(user_chunk);
-        let mut streams = pin!(Stream::list(&client, None, Some(chunk.into_iter().map(|Follow { to_id, .. }| to_id).collect()), None));
+        let mut streams = pin!(Stream::list(&client, None, Some(chunk.into_iter().map(|Follow { broadcaster_id, .. }| broadcaster_id).collect()), None));
         while let Some(stream) = streams.try_next().await? {
             online_streams.push(stream.error_for_type()?);
         }
