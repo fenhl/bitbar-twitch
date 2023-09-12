@@ -1,0 +1,17 @@
+server {
+    server_name bitbar-twitch.fenhl.net;
+
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    ssl_certificate /etc/letsencrypt/live/inwx/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/inwx/privkey.pem;
+
+    root /opt/git/github.com/fenhl/bitbar-twitch/main/assets/www;
+    index index.html;
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri.html $uri/ =404;
+    }
+}

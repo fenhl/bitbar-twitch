@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>OAuth landing</title>
+        <style media="(prefers-color-scheme: dark)">
+            body {
+                background-color: black;
+                color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Login successful</h1>
+        <noscript>
+            <p>Copy the part in your address bar between <code>#access_token=</code> and the next <code>&</code>, and save it to <code>~/.local/share/bitbar/plugin-cache/twitch.json</code> as <code>"accessToken"</code>.</p>
+        </noscript>
+        <div id="content"></div>
+        <p>You can then close this tab.</p>
+        <script>
+            let matches = document.location.hash.match(/#access_token=([0-9a-z]+)&/);
+            if (matches.length > 1) {
+                let scriptP = document.createElement('p');
+                scriptP.appendChild(document.createTextNode('Copy this token:'));
+                document.getElementById('content').appendChild(scriptP);
+                let tokenP = document.createElement('p');
+                tokenP.appendChild(document.createElement('code').appendChild(document.createTextNode(matches[1])));
+                document.getElementById('content').appendChild(tokenP);
+                let instructionsP = document.createElement('p');
+                instructionsP.appendChild(document.createTextNode('and save it to ~/.local/share/bitbar/plugin-cache/twitch.json as "accessToken".'));
+                document.getElementById('content').appendChild(instructionsP);
+            } else {
+                let fallbackP = document.createElement('p');
+                fallbackP.appendChild(document.createTextNode('Sorry, something went wrong during login. Please open an issue at https://github.com/fenhl/bitbar-twitch'));
+                document.getElementById('content').appendChild(fallbackP);
+            }
+        </script>
+    </body>
+</html>
