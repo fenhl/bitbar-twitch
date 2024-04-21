@@ -263,7 +263,7 @@ async fn main() -> Result<Menu, Error> {
         .collect::<Vec<_>>();
     let mut streams_by_game = HashMap::<_, Vec<_>>::default();
     for stream in &online_streams {
-        streams_by_game.entry(stream.game_id.clone()).or_default().push(stream.clone());
+        streams_by_game.entry(stream.game_id.clone()).or_default().push(stream);
     }
     if online_streams.is_empty() { return Ok(Menu::default()) }
     let mut menu = Menu(vec![
