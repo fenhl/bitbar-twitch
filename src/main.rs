@@ -183,7 +183,7 @@ impl StreamExt for Stream {
             MenuItem::Sep,
             ContentItem::new("Hide This Stream").command(hide_stream(&self.id)?).never_unwrap().refresh().into(),
             ContentItem::new("Hide This Game").command(hide_game(&user.id, &self.game_id)?).never_unwrap().refresh().into(),
-            ContentItem::new("Hide This User").command(hide_user(&user.id)?).never_unwrap().refresh().into(),
+            ContentItem::new("Hide This Channel").command(hide_user(&user.id)?).never_unwrap().refresh().into(),
         ]).into())
     }
 }
@@ -265,6 +265,7 @@ async fn main() -> Result<Menu, Error> {
         .filter(|stream|
             !data.hidden_streams.contains(&stream.id)
             && data.hidden_games.get(&stream.user_id).map_or(true, |user_hidden_games| !user_hidden_games.contains(&stream.game_id))
+            && !data.hidden_users.contains(&stream.user_id)
         )
         .collect::<Vec<_>>();
     let mut streams_by_game = HashMap::<_, Vec<_>>::default();
