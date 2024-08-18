@@ -1,6 +1,6 @@
 [package]
 name = "bitbar-twitch"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 

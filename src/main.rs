@@ -183,6 +183,7 @@ impl StreamExt for Stream {
             MenuItem::Sep,
             ContentItem::new("Hide This Stream").command(hide_stream(&self.id)?).never_unwrap().refresh().into(),
             ContentItem::new("Hide This Game").command(hide_game(&user.id, &self.game_id)?).never_unwrap().refresh().into(),
+            ContentItem::new("Hide This User").command(hide_user(&user.id)?).never_unwrap().refresh().into(),
         ]).into())
     }
 }
@@ -215,9 +216,17 @@ fn hide_stream(stream_id: StreamId) -> Result<(), Error> {
     Ok(())
 }
 
+#[bitbar::command]
+fn hide_user(user_id: UserId) -> Result<(), Error> {
+    let mut data = Data::load()?;
+    data.hidden_users.insert(user_id);
+    data.save()?;
+    Ok(())
+}
+
 #[bitbar::main(
     error_template_image = "../assets/glitch.png",
-    commands(defer, hide_game, hide_stream),
+    commands(defer, hide_game, hide_stream, hide_user),
 )]
 async fn main() -> Result<Menu, Error> {
     let current_exe = env::current_exe()?;

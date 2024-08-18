@@ -26,7 +26,7 @@ The configuration file lives in a [JSON](https://json.org/) file at <code>[$XDG_
 * `accessToken`: A Twitch API key for the plugin. If this is missing, the plugin will display instructions for generating it.
 * `deferDeltas`: An array of [timespecs](https://github.com/fenhl/timespec#syntax) given as arrays of strings. For each timespec listed, the plugin will generate menu items to hide itself until the next datetime matching that timespec.
 
-Additionally, the entries `deferred`, `hiddenGames`, `hiddenStreams`, and `userId` are managed automatically by the plugin.
+Additionally, the entries `deferred`, `hiddenGames`, `hiddenStreams`, `hiddenUsers`, and `userId` are managed automatically by the plugin.
 
 # Credits
 
