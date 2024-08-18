@@ -4,40 +4,30 @@ version = "0.2.1"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2021"
 
+[lints.rust]
+rust_2018_idioms = "deny"
+unsafe_code = "forbid"
+unused = "deny"
+unused_crate_dependencies = "deny"
+unused_import_braces = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+warnings = "deny"
+
 [profile.release]
 lto = true
 strip = true
 
 [dependencies]
+bitbar = { version = "0.8", features = ["base64"] }
+chrono = { version = "0.4", features = ["serde"] }
+futures = { version = "0.3" }
 itertools = "0.11"
-serde_json = "1"
+reqwest = { version = "0.11", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_path_to_error", version = "0.1" }
 thiserror = "1"
+timespec = { git = "https://github.com/fenhl/rust-timespec", branch = "main" }
+twitch_helix = { git = "https://github.com/fenhl/rust-twitch-helix", branch = "main" }
 url = "2"
 xdg = "2"
-
-[dependencies.bitbar]
-version = "0.8"
-features = ["base64"]
-
-[dependencies.chrono]
-version = "0.4"
-features = ["serde"]
-
-[dependencies.futures]
-version = "0.3"
-
-[dependencies.reqwest]
-version = "0.11"
-default-features = false
-
-[dependencies.serde]
-version = "1"
-features = ["derive"]
-
-[dependencies.timespec]
-git = "https://github.com/fenhl/rust-timespec"
-branch = "main"
-
-[dependencies.twitch_helix]
-git = "https://github.com/fenhl/rust-twitch-helix"
-branch = "main"
