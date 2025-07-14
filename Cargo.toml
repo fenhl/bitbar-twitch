@@ -2,7 +2,7 @@
 name = "bitbar-twitch"
 version = "0.2.2"
 authors = ["Fenhl <fenhl@fenhl.net>"]
-edition = "2021"
+edition = "2024"
 
 [lints.rust]
 rust_2018_idioms = "deny"
@@ -15,6 +15,7 @@ unused_qualifications = "deny"
 warnings = "deny"
 
 [profile.release]
+codegen-units = 1
 lto = true
 strip = true
 
