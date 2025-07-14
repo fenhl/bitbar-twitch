@@ -340,9 +340,9 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bitbar"
-version = "0.9.2"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27bc3e3c19b968ca6d355971abeadb73df5a38efd3eb69e169ef8b0e4c4e884"
+checksum = "1371a7e3b44a0f6172423a30463e3c1165feef13611b13f6b4ffe283d6967145"
 dependencies = [
  "base64 0.21.7",
  "bitbar-derive",
@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "bitbar-derive"
-version = "0.9.2"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b210b64e21407d6eb7d2735b9c74cc4ba71c729454e2031daffea168547c7ada"
+checksum = "7989ac9af1b2c3c61ca1018716eb622226c0e0bc35feeadb2e84f9c46ae1a916"
 dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
@@ -376,11 +376,11 @@ dependencies = [
  "bitbar",
  "chrono",
  "futures",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "reqwest",
  "serde",
  "serde_json_path_to_error",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "timespec",
  "twitch_helix",
  "url",
@@ -3306,9 +3306,9 @@ checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
 
 [[package]]
 name = "xdg"
-version = "2.5.2"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "213b7324336b53d2414b2db8537e56544d981803139155afa84f76eeebb7a546"
+checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "yoke"

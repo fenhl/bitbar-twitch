@@ -51,7 +51,7 @@ impl Data {
     }
 
     pub(crate) fn load() -> Result<Data, Error> {
-        Ok(if let Some(path) = BaseDirectories::new()?.find_data_file(PATH) {
+        Ok(if let Some(path) = BaseDirectories::new().find_data_file(PATH) {
             serde_json::from_slice(&fs::read(path)?)?
         } else {
             Data::default()
@@ -59,7 +59,7 @@ impl Data {
     }
 
     pub(crate) fn save(&self) -> Result<(), Error> {
-        let path = BaseDirectories::new()?.place_data_file(PATH)?;
+        let path = BaseDirectories::new().place_data_file(PATH)?;
         let mut buf = serde_json::to_string_pretty(self)?;
         buf.push('\n');
         fs::write(path, buf)?;
