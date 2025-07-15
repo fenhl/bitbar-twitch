@@ -1,6 +1,6 @@
 [package]
 name = "bitbar-twitch"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Fenhl <fenhl@fenhl.net>"]
 edition = "2024"
 
@@ -24,9 +24,11 @@ bitbar = { version = "0.10", features = ["base64"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = { version = "0.3" }
 itertools = "0.14"
+regex = "1.11.1"
 reqwest = { version = "0.12", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_path_to_error", version = "0.1" }
+serde_with = "3.14.0"
 thiserror = "2"
 timespec = { git = "https://github.com/fenhl/rust-timespec", branch = "main" }
 twitch_helix = { git = "https://github.com/fenhl/rust-twitch-helix", branch = "main" }

@@ -264,6 +264,7 @@ async fn main() -> Result<Menu, Error> {
         .filter(|stream|
             !data.hidden_streams.contains(&stream.id)
             && data.hidden_games.get(&stream.user_id).map_or(true, |user_hidden_games| !user_hidden_games.contains(&stream.game_id))
+            && data.hidden_titles.get(&stream.user_id).map_or(true, |user_hidden_titles| !user_hidden_titles.iter().any(|hidden_title| hidden_title.is_match(&stream.title)))
             && !data.hidden_users.contains(&stream.user_id)
         )
         .collect::<Vec<_>>();

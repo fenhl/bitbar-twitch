@@ -7,9 +7,14 @@ use {
         fs,
     },
     chrono::prelude::*,
+    regex::Regex,
     serde::{
         Deserialize,
         Serialize,
+    },
+    serde_with::{
+        DisplayFromStr,
+        serde_as,
     },
     twitch_helix::{
         Client,
@@ -26,6 +31,7 @@ use {
 
 const PATH: &str = "bitbar/plugin-cache/twitch.json";
 
+#[serde_as]
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub(crate) struct Data {
@@ -37,6 +43,9 @@ pub(crate) struct Data {
     pub(crate) hidden_games: BTreeMap<UserId, BTreeSet<GameId>>,
     #[serde(default)]
     pub(crate) hidden_streams: BTreeSet<StreamId>,
+    #[serde_as(as = "BTreeMap<_, Vec<DisplayFromStr>>")]
+    #[serde(default)]
+    pub(crate) hidden_titles: BTreeMap<UserId, Vec<Regex>>,
     #[serde(default)]
     pub(crate) hidden_users: BTreeSet<UserId>,
     user_id: Option<UserId>,
